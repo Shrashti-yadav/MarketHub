@@ -1,0 +1,42 @@
+# dependencies
+node_modules
+
+# build
+dist
+dist-ssr
+
+# environment
+.env
+.env.*
+
+# uploads (if backend)
+uploads
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# local files
+*.local
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# OS files
+.DS_Store
+
+# windows
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# temp
+*.sw?
