@@ -5,21 +5,36 @@ import { generatePaymentIntent } from "../utils/generatePaymentIntent.js";
 
 export const placeNewOrder = catchAsyncErrors(async (req, res, next) => {
   const {
-    full_name, state, city, country, address, pincode, phone,
+    full_name,
+    state,
+    city,
+    country,
+    address,
+    pincode,
+    phone,
     orderedItems,
-    payment_method, // "Card" or "COD"
+    payment_method,
   } = req.body;
 
   if (!full_name || !state || !city || !country || !address || !pincode || !phone) {
     return next(new ErrorHandler("Please provide complete shipping details.", 400));
   }
 
-  const items = Array.isArray(orderedItems) ? orderedItems : JSON.parse(orderedItems);
-  if (!items || items.length === 0) {
+  let items;
+  try {
+    items = typeof orderedItems === "string"
+      ? JSON.parse(orderedItems)
+      : orderedItems;
+  } catch (err) {
+    return next(new ErrorHandler("Invalid cart data.", 400));
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
     return next(new ErrorHandler("No items in cart.", 400));
   }
 
-  const productIds = items.map((item) => item.product.id);
+  const productIds = items.map((i) => i.product.id);
+
   const { rows: products } = await database.query(
     `SELECT id, price, stock, name FROM products WHERE id = ANY($1::uuid[])`,
     [productIds]
@@ -29,72 +44,107 @@ export const placeNewOrder = catchAsyncErrors(async (req, res, next) => {
   const values = [];
   const placeholders = [];
 
-  items.forEach((item, index) => {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
     const product = products.find((p) => p.id === item.product.id);
-    if (!product) return next(new ErrorHandler(`Product not found for ID: ${item.product.id}`, 404));
-    if (item.quantity > product.stock) {
-      return next(new ErrorHandler(`Only ${product.stock} units available for ${product.name}`, 400));
+
+    if (!product) {
+      return next(new ErrorHandler(`Product not found: ${item.product.id}`, 404));
     }
+
+    if (item.quantity > product.stock) {
+      return next(
+        new ErrorHandler(`Only ${product.stock} units available for ${product.name}`, 400)
+      );
+    }
+
+    const imageUrl = item?.product?.images?.[0]?.url || "";
+
     total_price += product.price * item.quantity;
-    values.push(null, product.id, item.quantity, product.price, item.product.images[0].url || "", product.name);
-    const offset = index * 6;
-    placeholders.push(
-      `($${offset+1}, $${offset+2}, $${offset+3}, $${offset+4}, $${offset+5}, $${offset+6})`
+
+    values.push(
+      null,
+      product.id,
+      item.quantity,
+      product.price,
+      imageUrl,
+      product.name
     );
-  });
+
+    const offset = i * 6;
+    placeholders.push(
+      `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`
+    );
+  }
 
   const tax_price = 0.18;
   const shipping_price = total_price >= 50 ? 0 : 2;
-  total_price = Math.round(total_price + total_price * tax_price + shipping_price);
+  const finalTotal = Math.round(total_price + total_price * tax_price + shipping_price);
 
   const isCOD = payment_method === "COD";
 
   const orderResult = await database.query(
     `INSERT INTO orders (buyer_id, total_price, tax_price, shipping_price, paid_at, payment_method)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [req.user.id, total_price, tax_price, shipping_price, isCOD ? new Date() : null, isCOD ? "COD" : "Card"]
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      req.user.id,
+      finalTotal,
+      tax_price,
+      shipping_price,
+      isCOD ? new Date() : null,
+      isCOD ? "COD" : "Card",
+    ]
   );
 
   const orderId = orderResult.rows[0].id;
-  for (let i = 0; i < values.length; i += 6) values[i] = orderId;
+
+  // FIX: assign orderId safely
+  for (let i = 0; i < values.length; i += 6) {
+    values[i] = orderId;
+  }
 
   await database.query(
-    `INSERT INTO order_items (order_id, product_id, quantity, price, image, title) VALUES ${placeholders.join(", ")} RETURNING *`,
+    `INSERT INTO order_items (order_id, product_id, quantity, price, image, title)
+     VALUES ${placeholders.join(", ")}`,
     values
   );
 
   await database.query(
     `INSERT INTO shipping_info (order_id, full_name, state, city, country, address, pincode, phone)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
     [orderId, full_name, state, city, country, address, pincode, phone]
   );
 
-  // COD: reduce stock immediately and return
+  // COD
   if (isCOD) {
     for (const item of items) {
-      const product = products.find((p) => p.id === item.product.id);
-      if (product) {
-        await database.query(`UPDATE products SET stock = stock - $1 WHERE id = $2`, [item.quantity, product.id]);
-      }
+      await database.query(
+        `UPDATE products SET stock = stock - $1 WHERE id = $2`,
+        [item.quantity, item.product.id]
+      );
     }
+
     return res.status(200).json({
       success: true,
       message: "Order placed! Pay on delivery.",
-      paymentIntent: null,
-      total_price,
+      total_price: finalTotal,
       isCOD: true,
     });
   }
 
-  // Card: generate Stripe intent
-  const paymentResponse = await generatePaymentIntent(orderId, total_price);
-  if (!paymentResponse.success) return next(new ErrorHandler("Payment failed. Try again.", 500));
+  // Card payment
+  const paymentResponse = await generatePaymentIntent(orderId, finalTotal);
+
+  if (!paymentResponse.success) {
+    return next(new ErrorHandler("Payment failed.", 500));
+  }
 
   res.status(200).json({
     success: true,
-    message: "Order placed. Please proceed to payment.",
+    message: "Order placed. Proceed to payment.",
     paymentIntent: paymentResponse.clientSecret,
-    total_price,
+    total_price: finalTotal,
     isCOD: false,
   });
 });
