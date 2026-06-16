@@ -10,33 +10,36 @@ import {
 } from "../controllers/orderController.js";
 import {
   isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles,
 } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
+// User routes — isAuthenticated
 router.post("/new", isAuthenticated, placeNewOrder);
 router.get("/orders/me", isAuthenticated, fetchMyOrders);
-router.put("/cancel/:orderId", isAuthenticated, cancelOrder); // ✅ new
+router.put("/cancel/:orderId", isAuthenticated, cancelOrder);
+router.get("/:orderId", isAuthenticated, fetchSingleOrder);
+
+// Admin routes — isAdminAuthenticated
 router.get(
   "/admin/getall",
-  isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles("Admin"),
   fetchAllOrders
 );
 router.put(
   "/admin/update/:orderId",
-  isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles("Admin"),
   updateOrderStatus
 );
 router.delete(
   "/admin/delete/:orderId",
-  isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles("Admin"),
   deleteOrder
 );
-
-router.get("/:orderId", isAuthenticated, fetchSingleOrder);
 
 export default router;

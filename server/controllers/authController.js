@@ -36,7 +36,7 @@ export const register = catchAsyncErrors(async (req, res, next) => {
     "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *",
     [name, email, hashedPassword]
   );
-  sendToken(user.rows[0], 201, "User registered successfully", res);
+  sendToken(user.rows[0], 201, "User registered successfully", res, "token");
 });
 
 export const login = catchAsyncErrors(async (req, res, next) => {
@@ -54,7 +54,9 @@ export const login = catchAsyncErrors(async (req, res, next) => {
   if (!isPasswordMatch) {
     return next(new ErrorHandler("Invalid email or password.", 401));
   }
-  sendToken(user.rows[0], 200, "Logged In.", res);
+  // FIX: use "token" for users, "admin_token" for admins
+  const cookieName = user.rows[0].role === "Admin" ? "admin_token" : "token";
+  sendToken(user.rows[0], 200, "Logged In.", res, cookieName);
 });
 
 export const getUser = catchAsyncErrors(async (req, res, next) => {
@@ -69,6 +71,20 @@ export const logout = catchAsyncErrors(async (req, res, next) => {
   res
     .status(200)
     .cookie("token", "", {
+      expires: new Date(Date.now()),
+      httpOnly: true,
+    })
+    .json({
+      success: true,
+      message: "Logged out successfully.",
+    });
+});
+
+// Admin logout — clears admin_token
+export const adminLogout = catchAsyncErrors(async (req, res, next) => {
+  res
+    .status(200)
+    .cookie("admin_token", "", {
       expires: new Date(Date.now()),
       httpOnly: true,
     })
@@ -98,7 +114,6 @@ export const forgotPassword = catchAsyncErrors(async (req, res, next) => {
   );
 
   const resetPasswordUrl = `${frontendUrl}/password/reset/${resetToken}`;
-
   const message = generateEmailTemplate(resetPasswordUrl);
 
   try {
@@ -152,12 +167,11 @@ export const resetPassword = catchAsyncErrors(async (req, res, next) => {
     `UPDATE users SET password = $1, reset_password_token = NULL, reset_password_expire = NULL WHERE id = $2 RETURNING *`,
     [hashedPassword, user.rows[0].id]
   );
-  sendToken(updatedUser.rows[0], 200, "Password reset successfully", res);
+  sendToken(updatedUser.rows[0], 200, "Password reset successfully", res, "token");
 });
 
 export const updatePassword = catchAsyncErrors(async (req, res, next) => {
   const { currentPassword, newPassword, confirmNewPassword } = req.body;
-  console.log(currentPassword, newPassword, confirmNewPassword)
   if (!currentPassword || !newPassword || !confirmNewPassword) {
     return next(new ErrorHandler("Please provide all required fields.", 400));
   }
@@ -171,7 +185,6 @@ export const updatePassword = catchAsyncErrors(async (req, res, next) => {
   if (newPassword !== confirmNewPassword) {
     return next(new ErrorHandler("New passwords do not match.", 400));
   }
-
   if (
     newPassword.length < 8 ||
     newPassword.length > 16 ||
@@ -184,7 +197,6 @@ export const updatePassword = catchAsyncErrors(async (req, res, next) => {
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
-
   await database.query("UPDATE users SET password = $1 WHERE id = $2", [
     hashedPassword,
     req.user.id,

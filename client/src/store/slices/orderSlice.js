@@ -20,7 +20,7 @@ export const placeOrder = createAsyncThunk(
     try {
       const res = await axiosInstance.post("/order/new", data);
       toast.success(res.data.message);
-      return res.data; // { paymentIntent, total_price, isCOD }
+      return res.data;
     } catch (error) {
       toast.error(error.response.data.message || "Failed to place order.");
       return thunkAPI.rejectWithValue(error.response.data.message);
@@ -59,6 +59,10 @@ const orderSlice = createSlice({
       state.orderStep = 1;
       state.isCOD = false;
     },
+    // ← added clearOrders
+    clearOrders(state) {
+      state.myOrders = [];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -75,7 +79,6 @@ const orderSlice = createSlice({
         state.finalPrice = action.payload.total_price;
         state.isCOD = action.payload.isCOD;
         if (action.payload.isCOD) {
-          // COD: no stripe step needed, stay on step 2 to show confirmation
           state.orderStep = 2;
           state.paymentIntent = "";
         } else {
@@ -96,4 +99,5 @@ const orderSlice = createSlice({
 });
 
 export default orderSlice.reducer;
-export const { toggleOrderStep } = orderSlice.actions;
+// ← added clearOrders to exports
+export const { toggleOrderStep, clearOrders } = orderSlice.actions;

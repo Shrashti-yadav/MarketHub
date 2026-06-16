@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Filter, Package, Truck, CheckCircle, XCircle, Loader } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-import { fetchMyOrders, cancelOrder } from "../store/slices/orderSlice";
+import { fetchMyOrders, cancelOrder, clearOrders } from "../store/slices/orderSlice";
 
 const Orders = () => {
   const [statusFilter, setStatusFilter] = useState("All");
@@ -11,8 +11,21 @@ const Orders = () => {
   const dispatch = useDispatch();
   const navigateTo = useNavigate();
 
+  // Fetch on mount and refetch when filter changes
   useEffect(() => {
     dispatch(fetchMyOrders());
+  }, [dispatch, statusFilter]);
+
+  // Refetch when user switches back to this tab
+  useEffect(() => {
+    const handleFocus = () => dispatch(fetchMyOrders());
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [dispatch]);
+
+  // Clear stale orders when leaving the page
+  useEffect(() => {
+    return () => dispatch(clearOrders());
   }, [dispatch]);
 
   if (!authUser) return navigateTo("/products");
@@ -172,7 +185,6 @@ const Orders = () => {
                     </>
                   )}
 
-                  {/* Cancel button — only for Processing orders */}
                   {order.order_status === "Processing" && (
                     <button
                       onClick={() => handleCancel(order.id)}

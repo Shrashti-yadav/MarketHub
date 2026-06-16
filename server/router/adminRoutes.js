@@ -2,26 +2,26 @@ import express from "express";
 import { getAllUsers, deleteUser, dashboardStats } from "../controllers/adminController.js";
 import {
   authorizedRoles,
-  isAuthenticated,
+  isAdminAuthenticated,
 } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
 router.get(
   "/getallusers",
-  isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles("Admin"),
   getAllUsers
-); // DASHBOARD
+);
 router.delete(
   "/delete/:id",
-  isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles("Admin"),
   deleteUser
 );
 router.get(
   "/fetch/dashboard-stats",
-  isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles("Admin"),
   dashboardStats
 );

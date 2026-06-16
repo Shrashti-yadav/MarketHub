@@ -1,13 +1,13 @@
 import jwt from "jsonwebtoken";
 
-export const sendToken = (user, statusCode, message, res) => {
+export const sendToken = (user, statusCode, message, res, cookieName = "token") => {
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET_KEY, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 
   res
     .status(statusCode)
-    .cookie("token", token, {
+    .cookie(cookieName, token, {
       expires: new Date(
         Date.now() + process.env.COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
       ),

@@ -12,32 +12,36 @@ import {
 import {
   authorizedRoles,
   isAuthenticated,
+  isAdminAuthenticated,
 } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
+// Admin routes — use isAdminAuthenticated
 router.post(
   "/admin/create",
-  isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles("Admin"),
   createProduct
 );
-router.get("/", fetchAllProducts);
-router.get("/singleProduct/:productId", fetchSingleProduct);
-router.put("/post-new/review/:productId", isAuthenticated, postProductReview);
-router.delete("/delete/review/:productId", isAuthenticated, deleteReview);
 router.put(
   "/admin/update/:productId",
-  isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles("Admin"),
   updateProduct
 );
 router.delete(
   "/admin/delete/:productId",
-  isAuthenticated,
+  isAdminAuthenticated,
   authorizedRoles("Admin"),
   deleteProduct
 );
+
+// User routes — use isAuthenticated
+router.get("/", fetchAllProducts);
+router.get("/singleProduct/:productId", fetchSingleProduct);
+router.put("/post-new/review/:productId", isAuthenticated, postProductReview);
+router.delete("/delete/review/:productId", isAuthenticated, deleteReview);
 router.post("/ai-search", isAuthenticated, fetchAIFilteredProducts);
 
 export default router;
