@@ -67,33 +67,33 @@ export const getUser = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+// Replace your logout and adminLogout functions with these:
+
 export const logout = catchAsyncErrors(async (req, res, next) => {
+  const isProduction = process.env.NODE_ENV === "production";
   res
     .status(200)
     .cookie("token", "", {
       expires: new Date(Date.now()),
       httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
     })
-    .json({
-      success: true,
-      message: "Logged out successfully.",
-    });
+    .json({ success: true, message: "Logged out successfully." });
 });
 
-// Admin logout — clears admin_token
-export const adminLogout = catchAsyncErrors(async (req, res, next) => {
+  export const adminLogout = catchAsyncErrors(async (req, res, next) => {
+  const isProduction = process.env.NODE_ENV === "production";
   res
     .status(200)
     .cookie("admin_token", "", {
       expires: new Date(Date.now()),
       httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
     })
-    .json({
-      success: true,
-      message: "Logged out successfully.",
-    });
-});
-
+    .json({ success: true, message: "Logged out successfully." });
+  });
 export const forgotPassword = catchAsyncErrors(async (req, res, next) => {
   const { email } = req.body;
   const { frontendUrl } = req.query;
