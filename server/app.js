@@ -9,6 +9,8 @@ import authRouter from "./router/authRoutes.js";
 import productRouter from "./router/productRoutes.js";
 import adminRouter from "./router/adminRoutes.js";
 import orderRouter from "./router/orderRoutes.js";
+import contactRouter from "./router/contactRoutes.js";
+import wishlistRouter from "./router/wishlistRoutes.js";
 import Stripe from "stripe";
 import database from "./database/db.js";
 
@@ -40,12 +42,9 @@ app.post(
       return res.status(400).send(`Webhook Error: ${error.message || error}`);
     }
 
-    // Handling the Event
-
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent_client_secret = event.data.object.client_secret;
       try {
-        // FINDING AND UPDATED PAYMENT
         const updatedPaymentStatus = "Paid";
         const paymentTableUpdateResult = await database.query(
           `UPDATE payments SET payment_status = $1 WHERE payment_intent_id = $2 RETURNING *`,
@@ -56,17 +55,12 @@ app.post(
           [paymentTableUpdateResult.rows[0].order_id]
         );
 
-        // Reduce Stock For Each Product
         const orderId = paymentTableUpdateResult.rows[0].order_id;
-
         const { rows: orderedItems } = await database.query(
-          `
-            SELECT product_id, quantity FROM order_items WHERE order_id = $1
-          `,
+          `SELECT product_id, quantity FROM order_items WHERE order_id = $1`,
           [orderId]
         );
 
-        // For each ordered item, reduce the product stock
         for (const item of orderedItems) {
           await database.query(
             `UPDATE products SET stock = stock - $1 WHERE id = $2`,
@@ -98,6 +92,8 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/product", productRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/order", orderRouter);
+app.use("/api/v1/wishlist", wishlistRouter); 
+app.use("/api/v1", contactRouter);
 
 createTables();
 

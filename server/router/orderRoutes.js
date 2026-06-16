@@ -6,6 +6,7 @@ import {
   fetchAllOrders,
   updateOrderStatus,
   deleteOrder,
+  cancelOrder,
 } from "../controllers/orderController.js";
 import {
   isAuthenticated,
@@ -13,9 +14,10 @@ import {
 } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
+
 router.post("/new", isAuthenticated, placeNewOrder);
-router.get("/:orderId", isAuthenticated, fetchSingleOrder);
 router.get("/orders/me", isAuthenticated, fetchMyOrders);
+router.put("/cancel/:orderId", isAuthenticated, cancelOrder); // ✅ new
 router.get(
   "/admin/getall",
   isAuthenticated,
@@ -34,5 +36,7 @@ router.delete(
   authorizedRoles("Admin"),
   deleteOrder
 );
+
+router.get("/:orderId", isAuthenticated, fetchSingleOrder);
 
 export default router;

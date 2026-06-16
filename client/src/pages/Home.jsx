@@ -3,7 +3,6 @@ import HeroSlider from "../components/Home/HeroSlider";
 import CategoryGrid from "../components/Home/CategoryGrid";
 import ProductSlider from "../components/Home/ProductSlider";
 import FeatureSection from "../components/Home/FeatureSection";
-import NewsletterSection from "../components/Home/NewsletterSection";
 import { useSelector } from "react-redux";
 
 const Index = () => {
@@ -25,7 +24,7 @@ const Index = () => {
           />
         )}
         <FeatureSection />
-        <NewsletterSection />
+        {/* <NewsletterSection /> */}
       </div>
     </div>
   );

@@ -22,8 +22,44 @@ import About from "./pages/About";
 import FAQ from "./pages/FAQ";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import { useDispatch, useSelector } from "react-redux";
+import { useEffect } from "react";
+import { getUser } from "./store/slices/authSlice";
+import { Loader } from "lucide-react";
+import { fetchAllProducts } from "./store/slices/productSlice";
+import OrderDetails from "./pages/OrderDetails";
+import Wishlist from "./pages/Wishlist";
+
+
 
 const App = () => {
+  const {authUser,isCheckingAuth}=useSelector((state)=>state.auth);
+  const dispatch=useDispatch();
+  useEffect(()=>{
+    dispatch(getUser());
+  },[dispatch]);
+   
+  useEffect(()=>{
+    dispatch(fetchAllProducts({
+      category:"",
+      price:"0-10000",
+      search:"",
+      ratings:"",
+      availability:"",
+      page:1,
+    }));
+  },[]);
+  const {products}=useSelector((state)=>state.product)
+  if((isCheckingAuth && !authUser ) ||!products){
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader className="size-10 animate-spin"/>
+      </div>
+    );
+  }
+
+
+
   return (
     <>
       <ThemeProvider>
@@ -40,8 +76,11 @@ const App = () => {
               <Route path="/password/reset/:token" element={<Index />} />
               <Route path="/products" element={<Products />} />
               <Route path="/product/:id" element={<ProductDetail />} />
+              
+              <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/orders" element={<Orders />} />
+              <Route path="/order/:orderId" element={<OrderDetails />} />
               <Route path="/payment" element={<Payment />} />
               <Route path="/about" element={<About />} />
               <Route path="/faq" element={<FAQ />} />
