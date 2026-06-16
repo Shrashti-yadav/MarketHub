@@ -1,18 +1,23 @@
 import pkg from "pg";
-const {Client}=pkg;
+const { Pool } = pkg;
 
-const database=new Client({
-    //user:process.env.DB_USER,
-    user:"postgres",
-    host:"localhost",
-    database:"MarketHub",
-    password:"KITKAT265",
-    //password:process.env.DB_PASSWORD,
-    port:5432,
-});
+const database = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }, // required for Render PostgreSQL
+      }
+    : {
+        user: "postgres",
+        host: "localhost",
+        database: "MarketHub",
+        password: "KITKAT265",
+        port: 5432,
+      }
+);
 
 try {
-  await database.connect();
+  await database.query("SELECT 1");
   console.log("Connected to the database successfully");
 } catch (error) {
   console.error("Database connection failed:", error);
